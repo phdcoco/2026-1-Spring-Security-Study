@@ -25,13 +25,14 @@ public class MemberService {
     @Transactional
     public void createMember(MemberCreateRequest request) {
         // 중복되는 유저네임이 있으면 에러
-        boolean isDuplicate = memberRepository.existsByUsername(request.getUsername());
+        // DTO를 record로 바꿨으면 getUsername()이 아닌 그냥 username()이다. 필드명이 메서드명이다.
+        boolean isDuplicate = memberRepository.existsByUsername(request.username());
 
         if (isDuplicate) {
             throw new CustomException(MEMBER_USERNAME_DUPLICATE);
         }
 
-        Member member = new Member(request.getUsername(), request.getPassword());
+        Member member = new Member(request.username(), request.password());
 
         // 멤버를 저장한다
         memberRepository.save(member);
@@ -45,7 +46,7 @@ public class MemberService {
         List<Member> members = memberRepository.findAll(); // JpaRepository에 이미 findAll()이 선언되어 있음.
 
         for (Member member : members) {
-            MemberInfoResponse response = new MemberInfoResponse(member);
+            MemberInfoResponse response = MemberInfoResponse.from(member);
             list.add(response);
         }
 
@@ -61,7 +62,7 @@ public class MemberService {
             throw new CustomException(MEMBER_NOT_FOUND);
         }
 
-        return new MemberInfoResponse(member);
+        return MemberInfoResponse.from(member);
     }
 
     @Transactional
@@ -71,7 +72,7 @@ public class MemberService {
                 .orElseThrow(() -> new CustomException(MEMBER_NOT_FOUND));
 
         // 해당하는 멤버 정보를 갱신한다
-        member.updateUsername(request.getUsername());
+        member.updateUsername(request.username());
     }
 
     @Transactional

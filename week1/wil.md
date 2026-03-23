@@ -91,3 +91,76 @@ member가 없다면 404가 뜨게 된다.
 POST시 401 Unauthorized 에러가 뜨게 된다.
 
 localhost:8080으로 로컬에서 직접 로그인하게 되면 자동으로 기본 로그인 페이지를 생성해 준다. 이 기본 로그인 페이지를 커스터마이징 하는 과정은 다음 시간부터 진행하게 된다.
+
+## Appendix : DTO를 record로 바꾸기
+
+프로젝트 트랙에서도 애용했던 record로 DTO를 변경하였다. record로 클래스를 선언할 때는 {} 가 아니라 먼저 ()를 이용해서 매개변수를 쭉 나열해준 뒤 그 다음 오는 {}안에 필요하다면 메서드를 정의해주면 된다. 헤더에 나열되는 필드를 컴포넌트라고 한다. 생성자, getter(), equals() 등 롬복의 어노테이션 필요 없이 메서드를 자동 제공하기 때문에 더 간결하고 편리하다. 각 필드는 private final로 자동 정의된다. 따라서 얻을 수 있는 이점은
+
+- 간결성 : 가독성이 좋다.
+- 불변성 : 모든 컴포넌트가 final로 선언되어 있고, setter가 금지되어 있다.
+- record로 선언함에 따라 이 클래스는 데이터 전달 용도임을 명시적으로 나타낼 수 있다.
+
+또한, 서비스 계층에서의 활용에서도 간편한데, username을 불러오고 싶다면 getUsername() 대신 그냥 필드명인 username() 쓰면 된다. 필드명이 곧 메서드명이 되는 것이다.
+
+### DTO의 of, from 메서드
+
+of : 값 → 객체 생성, 파라미터로 DTO 객체를 만들 때 사용한다.
+
+from : 객체 → 객체 변환, Entity를 DTO 객체로 만들 때 사용한다.
+
+역시 코드의 가독성과 재사용성을 높일 수 있다. 예를 들면 다음과 같다.
+
+원래의 MemberInfoResponse DTO는 다음과 같았다.
+
+```java
+@Getter
+public class MemberInfoResponse {
+
+    private final Long memberId;
+
+    private final String username;
+
+    public MemberInfoResponse(Member member) {
+        this.memberId = member.getId();
+        this.username = member.getUsername();
+    }
+}
+```
+
+MemberInfoResponse 생성자가 Member 객체인 member를 받아 DTO를 생성하고 있다. 이를 Record로 변환하면.
+
+```java
+public record MemberInfoResponse(
+    Long memberId,
+    String username
+) {
+    public MemberInfoResponse(Member member) {
+        this(member.getId(), member.getUsername());
+    }
+}
+```
+
+이렇게 1차로 간결하게 만들 수 있다. 여기서 메서드가 Member 객체를 DTO 객체로 만들고 있으므로 from을 이용하면.
+
+```java
+public record MemberInfoResponse(
+        Long memberId,
+        String username
+) {
+    public static MemberInfoResponse from(Member member) {
+        // 기본 생성자 호출
+        return new MemberInfoResponse(
+                member.getId(),
+                member.getUsername()
+        );
+    }
+}
+```
+
+정적 메서드로 from 메서드를 정의할 수 있다. 이렇게 만들고 서비스 계층에서
+
+```java
+MemberInfoResponse response = MemberInfoResponse.from(member);
+```
+
+new로 새 객체를 만드는 대신 from(member)로 변환의 느낌을 명확하게 보여줄 수 있으며 오버로딩 시 유지보수에도 편리하다.
