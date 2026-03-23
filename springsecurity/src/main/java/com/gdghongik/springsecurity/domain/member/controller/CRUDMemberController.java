@@ -23,7 +23,7 @@ public class CRUDMemberController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<MemberInfoResponse>> getMembers() {
         return ResponseEntity.ok(memberService.getMembers());
     }
