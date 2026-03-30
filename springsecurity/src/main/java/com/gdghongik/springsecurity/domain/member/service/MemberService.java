@@ -4,10 +4,12 @@ import com.gdghongik.springsecurity.domain.member.dto.MemberCreateRequest;
 import com.gdghongik.springsecurity.domain.member.dto.MemberInfoResponse;
 import com.gdghongik.springsecurity.domain.member.dto.MemberUpdateRequest;
 import com.gdghongik.springsecurity.domain.member.entity.Member;
+import com.gdghongik.springsecurity.domain.member.entity.MemberRole;
 import com.gdghongik.springsecurity.domain.member.repository.MemberRepository;
 import com.gdghongik.springsecurity.global.exception.CustomException;
 import com.gdghongik.springsecurity.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,14 @@ import static com.gdghongik.springsecurity.global.exception.ErrorCode.*;
 public class MemberService {
 
     private final MemberRepository memberRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Transactional(readOnly = true)
+    public MemberInfoResponse getMyInfo(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException(MEMBER_NOT_FOUND));
+        return MemberInfoResponse.from(member);
+    }
 
     @Transactional
     public void createMember(MemberCreateRequest request) {
@@ -32,7 +42,8 @@ public class MemberService {
             throw new CustomException(MEMBER_USERNAME_DUPLICATE);
         }
 
-        Member member = new Member(request.username(), request.password());
+        String encoded = passwordEncoder.encode(request.password());
+        Member member = new Member(request.username(), encoded, MemberRole.REGULAR);
 
         // 멤버를 저장한다
         memberRepository.save(member);
