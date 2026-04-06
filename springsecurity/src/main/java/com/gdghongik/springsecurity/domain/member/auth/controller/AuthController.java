@@ -1,8 +1,11 @@
 package com.gdghongik.springsecurity.domain.member.auth.controller;
 
 import com.gdghongik.springsecurity.domain.member.auth.dto.LoginRequest;
+import com.gdghongik.springsecurity.domain.member.dto.LoginResponse;
 import com.gdghongik.springsecurity.domain.member.dto.MemberCreateRequest;
 import com.gdghongik.springsecurity.domain.member.service.MemberService;
+import com.gdghongik.springsecurity.global.security.CustomUserDetails;
+import com.gdghongik.springsecurity.global.security.JwtProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,7 @@ public class AuthController {
 
     private final MemberService memberService;
     private final AuthenticationManager authenticationManager;
+    private final JwtProvider jwtProvider;
 
     @PostMapping("/signup")
     public ResponseEntity<Void> signup(@RequestBody MemberCreateRequest request) {
@@ -33,35 +37,26 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Void> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+    // JWT일 때는 Void가 아니라 Token 객체를 보내야 하니 DTO를 정의해 주자.
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         // AuthenticationManager가 다룰 수 있도록 요청을 토큰 객체에 담는다.
         UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(request.username(), request.password());
 
         // AuthenticationManager가 객체를 통해 인증 시도. 실패 시 Exception
         Authentication authentication = authenticationManager.authenticate(token);
 
-        // 인증 성공 시 현재 인증정보 저장
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(authentication);
-        SecurityContextHolder.setContext(context);
+        // 인증된 사용자 정보 authentication을 이용해 JWT Access Token 발급
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal(); // 옵셔널, 명시적 형 변환 사용
+        String accessToken = jwtProvider.generateToken(userDetails); // 토큰 발급, 반환형은 String
 
-        // 세션 생성, JSESSIONID 발급
-        HttpSession session = httpRequest.getSession(true);
 
-        // 세션에 인증 정보 저장
-        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
-
-        return ResponseEntity.ok().build();
+        // DTO 객체 만들기
+        return ResponseEntity.ok(new LoginResponse(accessToken));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest httpRequest) {
-        HttpSession session = httpRequest.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
-        // 인증 정보 삭제
-        SecurityContextHolder.clearContext();
+
 
         return ResponseEntity.ok().build();
     }
